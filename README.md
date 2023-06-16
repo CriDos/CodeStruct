@@ -1,6 +1,6 @@
 # CodeStruct
 
-CodeStruct is a handy utility that scans a part of your source code files, generates a file structure and its content, and copies it to the clipboard. The generated data can be conveniently fed to ChatGPT or any other large language model (LLM) for further work on the source code.
+CodeStruct is a versatile utility that scans a portion of your source code files, generates a file structure along with its content, and copies it to the clipboard. The compiled data provides a convenient representation of the project's structure and code, making it easy to share and collaborate in various platforms, such as ChatGPT or other text-based communication tools, without losing the context of the code.
 
 ## Features
 
