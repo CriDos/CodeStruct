@@ -84,4 +84,4 @@ tests/test_main.py
 \```
 ```
 
-You can now easily paste this formatted text into your LLM or any other text processor for further work.
+You can now effortlessly paste this formatted text into various platforms, such as text-based communication tools or collaboration services, for easier sharing, editing, and collaboration on your project.
