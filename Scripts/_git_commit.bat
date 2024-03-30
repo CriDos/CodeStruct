@@ -1,0 +1,2 @@
+cd ..
+git commit -a
