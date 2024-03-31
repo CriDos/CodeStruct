@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
@@ -11,9 +10,8 @@
         <OutputPath>../Build/$(Configuration)</OutputPath>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
-
     <ItemGroup>
-        <PackageReference Include="TextCopy" Version="6.2.1" />
+        <PackageReference Include="TextCopy"
+                          Version="6.2.1" />
     </ItemGroup>
-
 </Project>

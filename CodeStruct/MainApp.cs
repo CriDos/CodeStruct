@@ -28,10 +28,13 @@ namespace HardDev.CodeStruct
                 LoadAllowedExtensions();
                 LoadIgnoredDirectories();
 
-                var output = GenerateDirectoryStructureToClipboard(workingDirectory);
+                var output = GenerateCodeStructure(workingDirectory);
+
+                Console.WriteLine("Code structure has been successfully generated!");
+
                 ClipboardService.SetText(output);
 
-                Console.WriteLine("File structure has been successfully copied to clipboard!");
+                Console.WriteLine(output);
             }
             catch (Exception e)
             {
@@ -72,7 +75,7 @@ namespace HardDev.CodeStruct
             _ignoredDirectories = directories.ToArray();
         }
 
-        private static string GenerateDirectoryStructureToClipboard(string directory, string prefix = "")
+        private static string GenerateCodeStructure(string directory, string prefix = "")
         {
             var directoriesToProcess = new Queue<(string, string)>();
             directoriesToProcess.Enqueue((directory, prefix));
@@ -82,47 +85,34 @@ namespace HardDev.CodeStruct
             {
                 var (currentDirectory, currentPrefix) = directoriesToProcess.Dequeue();
 
-                var files = Directory.GetFiles(currentDirectory);
-                var directories = Directory.GetDirectories(currentDirectory);
-
-                foreach (var file in files)
+                foreach (var file in Directory.GetFiles(currentDirectory))
                 {
                     var fileInfo = new FileInfo(file);
-                    var fileExtension = fileInfo.Extension.ToLower();
+                    var fileExtension = fileInfo.Extension.TrimStart('.').ToLower();
 
-                    if (fileExtension.StartsWith('.'))
+                    if (_allowedFileExtensions.Contains(fileExtension))
                     {
-                        fileExtension = fileExtension[1..];
+                        var relativePath = $"{currentPrefix}{fileInfo.Name}";
+                        var fileContent = File.ReadAllText(file);
+
+                        outputBuilder
+                            .AppendLine(relativePath)
+                            .AppendLine("```")
+                            .AppendLine(fileContent)
+                            .AppendLine("```");
+
+                        Console.WriteLine("Source find: " + relativePath);
                     }
-
-                    if (!_allowedFileExtensions.Contains(fileExtension))
-                    {
-                        continue;
-                    }
-
-                    var relativePath = $"{currentPrefix}{Path.GetFileName(file)}";
-                    var fileContent = File.ReadAllText(file);
-
-                    outputBuilder
-                        .AppendLine(relativePath)
-                        .AppendLine("```")
-                        .AppendLine(fileContent)
-                        .AppendLine("```");
-
-                    Console.WriteLine("Source find: " + relativePath);
                 }
 
-                foreach (var subDirectory in directories)
+                foreach (var subDirectory in Directory.GetDirectories(currentDirectory))
                 {
                     var directoryName = Path.GetFileName(subDirectory);
 
-                    if (_ignoredDirectories.Contains(directoryName))
+                    if (!_ignoredDirectories.Contains(directoryName))
                     {
-                        continue;
+                        directoriesToProcess.Enqueue((subDirectory, $"{currentPrefix}{directoryName}/"));
                     }
-
-                    var newPrefix = $"{currentPrefix}{directoryName}/";
-                    directoriesToProcess.Enqueue((subDirectory, newPrefix));
                 }
             }
 
@@ -130,3 +120,4 @@ namespace HardDev.CodeStruct
         }
     }
 }
+
