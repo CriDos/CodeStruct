@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <OutputType>Exe</OutputType>
+        <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
-        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <LangVersion>12</LangVersion>
         <RootNamespace>HardDev.CodeStruct</RootNamespace>
         <Company>HardDev</Company>
         <FileVersion>1.0</FileVersion>
-        <ApplicationIcon>main.ico</ApplicationIcon>
-        <OutputPath>..\Build\$(Configuration)</OutputPath>
+        <ApplicationIcon>../Dist/main.ico</ApplicationIcon>
+        <OutputPath>../Build/$(Configuration)</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
 
     <ItemGroup>

@@ -6,7 +6,7 @@ using TextCopy;
 
 namespace HardDev.CodeStruct
 {
-    public static class Program
+    public static class MainApp
     {
         private static string[] _allowedFileExtensions;
         private static string[] _ignoredDirectories;
@@ -82,7 +82,7 @@ namespace HardDev.CodeStruct
                 var fileInfo = new FileInfo(file);
                 var fileExtension = fileInfo.Extension.ToLower();
 
-                if (fileExtension.StartsWith("."))
+                if (fileExtension.StartsWith('.'))
                 {
                     fileExtension = fileExtension[1..];
                 }
