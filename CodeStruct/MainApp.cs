@@ -18,7 +18,7 @@ namespace HardDev.CodeStruct
         private const string DefaultIgnoredDirectories =
             "node_modules, .git, .svn, .run, .idea, bin, obj, .vs, .vscode, .metadata, .recommenders, .settings, .angular, .keep, .venv, .virtualenv, _builds, _notes, Build, Debug, release, tmp, temp";
 
-        public static void Main()
+        public static void Main(string[] args)
         {
             try
             {
@@ -28,13 +28,19 @@ namespace HardDev.CodeStruct
                 LoadAllowedExtensions();
                 LoadIgnoredDirectories();
 
-                var output = GenerateCodeStructure(workingDirectory);
+                var cleanupContent = args.Contains("-cl");
+                var output = GenerateCodeStructure(workingDirectory, cleanupContent);
 
                 Console.WriteLine("Code structure has been successfully generated!");
 
-                ClipboardService.SetText(output);
-
-                Console.WriteLine(output);
+                if (args.Contains("-c"))
+                {
+                    Console.WriteLine(output);
+                }
+                else
+                {
+                    ClipboardService.SetText(output);
+                }
             }
             catch (Exception e)
             {
@@ -75,7 +81,7 @@ namespace HardDev.CodeStruct
             _ignoredDirectories = directories.ToArray();
         }
 
-        private static string GenerateCodeStructure(string directory, string prefix = "")
+        private static string GenerateCodeStructure(string directory, bool cleanupContent, string prefix = "")
         {
             var directoriesToProcess = new Queue<(string, string)>();
             directoriesToProcess.Enqueue((directory, prefix));
@@ -94,6 +100,11 @@ namespace HardDev.CodeStruct
                     {
                         var relativePath = $"{currentPrefix}{fileInfo.Name}";
                         var fileContent = File.ReadAllText(file);
+
+                        if (cleanupContent)
+                        {
+                            fileContent = CleanupFileContent(fileContent);
+                        }
 
                         outputBuilder
                             .AppendLine(relativePath)
@@ -118,6 +129,15 @@ namespace HardDev.CodeStruct
 
             return outputBuilder.ToString();
         }
+
+        private static string CleanupFileContent(string fileContent)
+        {
+            fileContent = fileContent.Replace("\t", " ");
+            fileContent = fileContent.Replace("\r", " ").Replace("\n", " ");
+            fileContent = System.Text.RegularExpressions.Regex.Replace(fileContent, @"\s+", " ");
+            fileContent = fileContent.Trim();
+
+            return fileContent;
+        }
     }
 }
-
