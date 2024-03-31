@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -24,11 +25,11 @@ namespace HardDev.CodeStruct
                 var workingDirectory = Directory.GetCurrentDirectory();
                 Console.WriteLine("Working directory: " + workingDirectory);
 
-                var outputBuilder = new StringBuilder();
                 LoadAllowedExtensions();
                 LoadIgnoredDirectories();
-                GenerateDirectoryStructureToClipboard(workingDirectory, outputBuilder);
-                ClipboardService.SetText(outputBuilder.ToString());
+
+                var output = GenerateDirectoryStructureToClipboard(workingDirectory);
+                ClipboardService.SetText(output);
 
                 Console.WriteLine("File structure has been successfully copied to clipboard!");
             }
@@ -71,51 +72,61 @@ namespace HardDev.CodeStruct
             _ignoredDirectories = directories.ToArray();
         }
 
-        private static void GenerateDirectoryStructureToClipboard(string directory, StringBuilder outputBuilder,
-            string prefix = "")
+        private static string GenerateDirectoryStructureToClipboard(string directory, string prefix = "")
         {
-            var files = Directory.GetFiles(directory);
-            var directories = Directory.GetDirectories(directory);
+            var directoriesToProcess = new Queue<(string, string)>();
+            directoriesToProcess.Enqueue((directory, prefix));
 
-            foreach (var file in files)
+            var outputBuilder = new StringBuilder();
+            while (directoriesToProcess.Count > 0)
             {
-                var fileInfo = new FileInfo(file);
-                var fileExtension = fileInfo.Extension.ToLower();
+                var (currentDirectory, currentPrefix) = directoriesToProcess.Dequeue();
 
-                if (fileExtension.StartsWith('.'))
+                var files = Directory.GetFiles(currentDirectory);
+                var directories = Directory.GetDirectories(currentDirectory);
+
+                foreach (var file in files)
                 {
-                    fileExtension = fileExtension[1..];
+                    var fileInfo = new FileInfo(file);
+                    var fileExtension = fileInfo.Extension.ToLower();
+
+                    if (fileExtension.StartsWith('.'))
+                    {
+                        fileExtension = fileExtension[1..];
+                    }
+
+                    if (!_allowedFileExtensions.Contains(fileExtension))
+                    {
+                        continue;
+                    }
+
+                    var relativePath = $"{currentPrefix}{Path.GetFileName(file)}";
+                    var fileContent = File.ReadAllText(file);
+
+                    outputBuilder
+                        .AppendLine(relativePath)
+                        .AppendLine("```")
+                        .AppendLine(fileContent)
+                        .AppendLine("```");
+
+                    Console.WriteLine("Source find: " + relativePath);
                 }
 
-                if (!_allowedFileExtensions.Contains(fileExtension))
+                foreach (var subDirectory in directories)
                 {
-                    continue;
+                    var directoryName = Path.GetFileName(subDirectory);
+
+                    if (_ignoredDirectories.Contains(directoryName))
+                    {
+                        continue;
+                    }
+
+                    var newPrefix = $"{currentPrefix}{directoryName}/";
+                    directoriesToProcess.Enqueue((subDirectory, newPrefix));
                 }
-
-                var relativePath = $"{prefix}{Path.GetFileName(file)}";
-                var fileContent = File.ReadAllText(file);
-
-                outputBuilder
-                    .AppendLine(relativePath)
-                    .AppendLine("```")
-                    .AppendLine(fileContent)
-                    .AppendLine("```");
-
-                Console.WriteLine("Source find: " + relativePath);
             }
 
-            foreach (var subDirectory in directories)
-            {
-                var directoryName = Path.GetFileName(subDirectory);
-
-                if (_ignoredDirectories.Contains(directoryName))
-                {
-                    continue;
-                }
-
-                var newPrefix = $"{prefix}{directoryName}/";
-                GenerateDirectoryStructureToClipboard(subDirectory, outputBuilder, newPrefix);
-            }
+            return outputBuilder.ToString();
         }
     }
 }
