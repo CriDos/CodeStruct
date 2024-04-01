@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <OutputType>WinExe</OutputType>
+        <OutputType>Exe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
         <LangVersion>12</LangVersion>
         <RootNamespace>HardDev.CodeStruct</RootNamespace>
         <Company>HardDev</Company>
-        <FileVersion>1.0</FileVersion>
+        <Version>$([System.DateTime]::Now.ToString("yyyy.MM.dd.HHmm"))</Version>
         <ApplicationIcon>../Dist/main.ico</ApplicationIcon>
         <OutputPath>../Build/$(Configuration)</OutputPath>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

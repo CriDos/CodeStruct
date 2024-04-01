@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using TextCopy;
 
@@ -22,6 +23,8 @@ namespace HardDev.CodeStruct
         {
             try
             {
+                Console.WriteLine($"CodeStruct {Assembly.GetEntryAssembly().GetName().Version}");
+
                 var workingDirectory = Directory.GetCurrentDirectory();
                 Console.WriteLine("Working directory: " + workingDirectory);
 
@@ -29,16 +32,20 @@ namespace HardDev.CodeStruct
                 LoadIgnoredDirectories();
 
                 var cleanupContent = args.Contains("-cl");
+                Console.WriteLine("Cleanup content: " + cleanupContent);
+
                 var output = GenerateCodeStructure(workingDirectory, cleanupContent);
 
                 Console.WriteLine("Code structure has been successfully generated!");
 
                 if (args.Contains("-c"))
                 {
+                    Console.WriteLine("Writing to console...");
                     Console.WriteLine(output);
                 }
                 else
                 {
+                    Console.WriteLine("Copying to clipboard...");
                     ClipboardService.SetText(output);
                 }
             }
@@ -111,8 +118,6 @@ namespace HardDev.CodeStruct
                             .AppendLine("```")
                             .AppendLine(fileContent)
                             .AppendLine("```");
-
-                        Console.WriteLine("Source find: " + relativePath);
                     }
                 }
 
