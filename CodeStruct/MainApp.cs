@@ -4,14 +4,15 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using TextCopy;
 
 namespace HardDev.CodeStruct
 {
     public static class MainApp
     {
-        private static string[] _allowedFileExtensions;
-        private static string[] _ignoredDirectories;
+        private static string[] s_allowedFileExtensions;
+        private static string[] s_ignoredDirectories;
 
         private const string DefaultExtensions =
             "c, h, cpp, hpp, cs, csproj, cshtml, csx, csharp, vb, java, kotlin, py, php, js, ts, html, css, go, ruby, pl, r, groovy, swift, asm, bat, cmd, ps1";
@@ -23,18 +24,18 @@ namespace HardDev.CodeStruct
         {
             try
             {
-                Console.WriteLine($"CodeStruct {Assembly.GetEntryAssembly().GetName().Version}");
+                Console.WriteLine($"CodeStruct {Assembly.GetEntryAssembly()?.GetName().Version}");
 
-                var workingDirectory = Directory.GetCurrentDirectory();
+                string workingDirectory = Directory.GetCurrentDirectory();
                 Console.WriteLine("Working directory: " + workingDirectory);
 
                 LoadAllowedExtensions();
                 LoadIgnoredDirectories();
 
-                var cleanupContent = args.Contains("-cl");
+                bool cleanupContent = args.Contains("-cl");
                 Console.WriteLine("Cleanup content: " + cleanupContent);
 
-                var output = GenerateCodeStructure(workingDirectory, cleanupContent);
+                string output = GenerateCodeStructure(workingDirectory, cleanupContent);
 
                 Console.WriteLine("Code structure has been successfully generated!");
 
@@ -57,7 +58,7 @@ namespace HardDev.CodeStruct
 
         private static void LoadAllowedExtensions()
         {
-            var allowedExtensionsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AllowedExtensions.txt");
+            string allowedExtensionsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AllowedExtensions.txt");
 
             if (!File.Exists(allowedExtensionsFile))
             {
@@ -68,12 +69,12 @@ namespace HardDev.CodeStruct
                 .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(ext => ext.Trim().ToLower());
 
-            _allowedFileExtensions = extensions.ToArray();
+            s_allowedFileExtensions = extensions.ToArray();
         }
 
         private static void LoadIgnoredDirectories()
         {
-            var ignoredDirectoriesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "IgnoredDirectories.txt");
+            string ignoredDirectoriesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "IgnoredDirectories.txt");
 
             if (!File.Exists(ignoredDirectoriesFile))
             {
@@ -85,7 +86,7 @@ namespace HardDev.CodeStruct
                 .Select(dir => dir.Trim())
                 .Where(dir => !string.IsNullOrWhiteSpace(dir));
 
-            _ignoredDirectories = directories.ToArray();
+            s_ignoredDirectories = directories.ToArray();
         }
 
         private static string GenerateCodeStructure(string directory, bool cleanupContent, string prefix = "")
@@ -96,17 +97,17 @@ namespace HardDev.CodeStruct
             var outputBuilder = new StringBuilder();
             while (directoriesToProcess.Count > 0)
             {
-                var (currentDirectory, currentPrefix) = directoriesToProcess.Dequeue();
+                (string currentDirectory, string currentPrefix) = directoriesToProcess.Dequeue();
 
-                foreach (var file in Directory.GetFiles(currentDirectory))
+                foreach (string file in Directory.GetFiles(currentDirectory))
                 {
                     var fileInfo = new FileInfo(file);
-                    var fileExtension = fileInfo.Extension.TrimStart('.').ToLower();
+                    string fileExtension = fileInfo.Extension.TrimStart('.').ToLower();
 
-                    if (_allowedFileExtensions.Contains(fileExtension))
+                    if (s_allowedFileExtensions.Contains(fileExtension))
                     {
-                        var relativePath = $"{currentPrefix}{fileInfo.Name}";
-                        var fileContent = File.ReadAllText(file);
+                        string relativePath = $"{currentPrefix}{fileInfo.Name}";
+                        string fileContent = File.ReadAllText(file);
 
                         if (cleanupContent)
                         {
@@ -121,11 +122,11 @@ namespace HardDev.CodeStruct
                     }
                 }
 
-                foreach (var subDirectory in Directory.GetDirectories(currentDirectory))
+                foreach (string subDirectory in Directory.GetDirectories(currentDirectory))
                 {
-                    var directoryName = Path.GetFileName(subDirectory);
+                    string directoryName = Path.GetFileName(subDirectory);
 
-                    if (!_ignoredDirectories.Contains(directoryName))
+                    if (!s_ignoredDirectories.Contains(directoryName))
                     {
                         directoriesToProcess.Enqueue((subDirectory, $"{currentPrefix}{directoryName}/"));
                     }
@@ -137,12 +138,73 @@ namespace HardDev.CodeStruct
 
         private static string CleanupFileContent(string fileContent)
         {
-            fileContent = fileContent.Replace("\t", " ");
-            fileContent = fileContent.Replace("\r", " ").Replace("\n", " ");
-            fileContent = System.Text.RegularExpressions.Regex.Replace(fileContent, @"\s+", " ");
-            fileContent = fileContent.Trim();
+            string cleanedContent = RemoveComments(fileContent);
 
-            return fileContent;
+            cleanedContent = cleanedContent.Replace("\t", " ");
+            cleanedContent = cleanedContent.Replace("\r", " ").Replace("\n", " ");
+            cleanedContent = Regex.Replace(cleanedContent, @"\s+", " ");
+            cleanedContent = cleanedContent.Trim();
+
+            return cleanedContent;
+        }
+
+        private static string RemoveComments(string fileContent)
+        {
+            var sb = new StringBuilder();
+            bool inString = false;
+            bool inChar = false;
+            bool inMultiLineComment = false;
+            bool inSingleLineComment = false;
+
+            for (int i = 0; i < fileContent.Length; i++)
+            {
+                char c = fileContent[i];
+                char nextChar = i + 1 < fileContent.Length ? fileContent[i + 1] : '\0';
+
+                if (!inMultiLineComment && !inSingleLineComment)
+                {
+                    if (c == '\"' && !inChar)
+                    {
+                        inString = !inString;
+                    }
+                    else if (c == '\'' && !inString)
+                    {
+                        inChar = !inChar;
+                    }
+                    else if (c == '/' && nextChar == '*' && !inString && !inChar)
+                    {
+                        inMultiLineComment = true;
+                        i++;
+                        continue;
+                    }
+                    else if (c == '/' && nextChar == '/' && !inString && !inChar)
+                    {
+                        inSingleLineComment = true;
+                        i++;
+                        continue;
+                    }
+                }
+                else if (inMultiLineComment)
+                {
+                    if (c == '*' && nextChar == '/')
+                    {
+                        inMultiLineComment = false;
+                        i++;
+                        continue;
+                    }
+                }
+                else if (c is '\n' or '\r')
+                {
+                    inSingleLineComment = false;
+                }
+
+                if (!inMultiLineComment && !inSingleLineComment)
+                {
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString();
         }
     }
 }
