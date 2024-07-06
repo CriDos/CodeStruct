@@ -25,8 +25,26 @@ public static class MainApp
         {
             s_logger.Information($"CodeStruct {Assembly.GetEntryAssembly()?.GetName().Version}");
 
-            await Parser.Default.ParseArguments<Options>(args)
-                .WithParsedAsync(RunAsync);
+            DisplayUsageAndConfigInfo();
+
+            if (args.Length > 0)
+            {
+                await Parser.Default.ParseArguments<Options>(args)
+                    .WithParsedAsync(RunAsync);
+            }
+            else
+            {
+                bool pathSet = SetEnvironmentPath();
+                if (pathSet)
+                {
+                    Console.WriteLine("Path successfully set. Restart the program to apply changes.");
+                    Environment.Exit(0);
+                }
+                else
+                {
+                    Console.WriteLine("Running the program without arguments...");
+                }
+            }
         }
         catch (Exception e)
         {
@@ -34,8 +52,40 @@ public static class MainApp
         }
     }
 
+    private static void DisplayUsageAndConfigInfo()
+    {
+        Console.WriteLine("Usage information:");
+        Console.WriteLine("  -c, --console     Output to console instead of clipboard");
+        Console.WriteLine("  --cl              Clean up file content");
+        Console.WriteLine("  -s, --structure   Generate only directory structure");
+        Console.WriteLine("  --set-path        Set CodeStruct path in system environment variables");
+        Console.WriteLine("\nConfiguration options:");
+
+        var config = AppConfig.GetOrLoad<CodeStructConfig>(out bool loaded);
+        if (!loaded)
+        {
+            config.Save();
+        }
+
+        Console.WriteLine($"  Allowed extensions: {string.Join(", ", config.AllowedExtensions)}");
+        Console.WriteLine($"  Ignored directories: {string.Join(", ", config.IgnoredDirectories)}");
+        Console.WriteLine($"\nConfiguration file: {config.ConfigPath}");
+        Console.WriteLine();
+    }
+
     private static async Task RunAsync(Options opts)
     {
+        if (opts.SetPath)
+        {
+            bool pathSet = SetEnvironmentPath();
+            if (pathSet)
+            {
+                Environment.Exit(0);
+            }
+
+            return;
+        }
+
         string workingDirectory = Directory.GetCurrentDirectory();
         s_logger.Information("Working directory: {Directory}", workingDirectory);
 
@@ -70,6 +120,31 @@ public static class MainApp
         {
             s_logger.Information("Copying to clipboard...");
             await ClipboardService.SetTextAsync(output);
+        }
+    }
+
+    private static bool SetEnvironmentPath()
+    {
+        try
+        {
+            string executablePath = AppDomain.CurrentDomain.BaseDirectory;
+            string pathVariable = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? string.Empty;
+
+            if (!pathVariable.Contains(executablePath))
+            {
+                string newPath = $"{pathVariable};{executablePath}";
+                Environment.SetEnvironmentVariable("PATH", newPath, EnvironmentVariableTarget.User);
+                Console.WriteLine("CodeStruct path has been added to the system PATH variable.");
+                return true;
+            }
+
+            Console.WriteLine("CodeStruct path is already in the system PATH variable.");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to set environment path: {ex.Message}");
+            return false;
         }
     }
 
@@ -170,6 +245,7 @@ public static class MainApp
         return cleanedContent;
     }
 
+
     private static string RemoveComments(string fileContent)
     {
         var sb = new StringBuilder();
@@ -183,41 +259,53 @@ public static class MainApp
             char c = fileContent[i];
             char nextChar = i + 1 < fileContent.Length ? fileContent[i + 1] : '\0';
 
-            if (!inMultiLineComment && !inSingleLineComment)
+            switch (inMultiLineComment)
             {
-                if (c == '\"' && !inChar)
+                case false when !inSingleLineComment:
                 {
-                    inString = !inString;
+                    if (c == '"' && !inChar)
+                    {
+                        inString = !inString;
+                    }
+                    else if (c == '\'' && !inString)
+                    {
+                        inChar = !inChar;
+                    }
+                    else if (c == '/' && nextChar == '*' && !inString && !inChar)
+                    {
+                        inMultiLineComment = true;
+                        i++;
+                        continue;
+                    }
+                    else if (c == '/' && nextChar == '/' && !inString && !inChar)
+                    {
+                        inSingleLineComment = true;
+                        i++;
+                        continue;
+                    }
+
+                    break;
                 }
-                else if (c == '\'' && !inString)
+                case true:
                 {
-                    inChar = !inChar;
+                    if (c == '*' && nextChar == '/')
+                    {
+                        inMultiLineComment = false;
+                        i++;
+                        continue;
+                    }
+
+                    break;
                 }
-                else if (c == '/' && nextChar == '*' && !inString && !inChar)
+                default:
                 {
-                    inMultiLineComment = true;
-                    i++;
-                    continue;
+                    if (c is '\n' or '\r')
+                    {
+                        inSingleLineComment = false;
+                    }
+
+                    break;
                 }
-                else if (c == '/' && nextChar == '/' && !inString && !inChar)
-                {
-                    inSingleLineComment = true;
-                    i++;
-                    continue;
-                }
-            }
-            else if (inMultiLineComment)
-            {
-                if (c == '*' && nextChar == '/')
-                {
-                    inMultiLineComment = false;
-                    i++;
-                    continue;
-                }
-            }
-            else if (c is '\n' or '\r')
-            {
-                inSingleLineComment = false;
             }
 
             if (!inMultiLineComment && !inSingleLineComment)

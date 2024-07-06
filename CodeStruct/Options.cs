@@ -1,7 +1,5 @@
 ﻿using CommandLine;
 
-namespace HardDev.CodeStruct;
-
 public class Options
 {
     [Option('c', "console", Required = false, HelpText = "Output to console instead of clipboard.")]
@@ -12,4 +10,7 @@ public class Options
 
     [Option('s', "structure", Required = false, HelpText = "Generate only directory structure.")]
     public bool GenerateStructureOnly { get; set; }
+
+    [Option("set-path", Required = false, HelpText = "Set CodeStruct path in system environment variables.")]
+    public bool SetPath { get; set; }
 }

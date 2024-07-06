@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 using HardDev.CoreUtils.Config;
 
 namespace HardDev.CodeStruct.Configs;
@@ -9,6 +10,10 @@ public sealed class CodeStructConfig : BaseConfiguration<CodeStructConfig>
 {
     public CodeStructConfig() : base(GetConfigPath())
     {
+        Options = new JsonSerializerOptions()
+        {
+            WriteIndented = true
+        };
     }
 
     private static string GetConfigPath()
