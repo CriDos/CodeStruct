@@ -11,6 +11,8 @@
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="CommandLineParser" Version="2.9.1" />
+        <PackageReference Include="HardDev.CoreUtils" Version="2.2.7" />
         <PackageReference Include="TextCopy"
                           Version="6.2.1" />
     </ItemGroup>
