@@ -27,24 +27,8 @@ public static class MainApp
 
             DisplayUsageAndConfigInfo();
 
-            if (args.Length > 0)
-            {
-                await Parser.Default.ParseArguments<Options>(args)
-                    .WithParsedAsync(RunAsync);
-            }
-            else
-            {
-                bool pathSet = SetEnvironmentPath();
-                if (pathSet)
-                {
-                    Console.WriteLine("Path successfully set. Restart the program to apply changes.");
-                    Environment.Exit(0);
-                }
-                else
-                {
-                    Console.WriteLine("Running the program without arguments...");
-                }
-            }
+            await Parser.Default.ParseArguments<Options>(args)
+                .WithParsedAsync(RunAsync);
         }
         catch (Exception e)
         {
