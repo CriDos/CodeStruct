@@ -11,6 +11,9 @@ public class Options
     [Option('s', "structure", Required = false, HelpText = "Generate only directory structure.")]
     public bool GenerateStructureOnly { get; set; }
 
+    [Option('d', "directories", Required = false, HelpText = "Generate only directory structure without files.")]
+    public bool DirectoriesOnly { get; set; }
+
     [Option("set-path", Required = false, HelpText = "Set CodeStruct path in system environment variables.")]
     public bool SetPath { get; set; }
 }

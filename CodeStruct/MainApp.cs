@@ -41,9 +41,9 @@ public static class MainApp
         Console.WriteLine("Usage information:");
         Console.WriteLine("  -c, --console     Output to console instead of clipboard");
         Console.WriteLine("  --cl              Clean up file content");
-        Console.WriteLine("  -s, --structure   Generate only directory structure");
+        Console.WriteLine("  -s, --structure   Generate file and directory structure");
+        Console.WriteLine("  -d, --directories Generate only directory structure without files");
         Console.WriteLine("  --set-path        Set CodeStruct path in system environment variables");
-        Console.WriteLine("\nConfiguration options:");
 
         var config = AppConfig.GetOrLoad<CodeStructConfig>(out bool loaded);
         if (!loaded)
@@ -79,18 +79,34 @@ public static class MainApp
             config.Save();
         }
 
-        s_logger.Information("Cleanup content: {CleanupContent}", opts.CleanupContent);
-        s_logger.Information("Generate structure only: {GenerateStructureOnly}", opts.GenerateStructureOnly);
+        string output = string.Empty;
+        bool dataGenerated = false;
 
-        string output;
         if (opts.GenerateStructureOnly)
         {
-            output = GenerateDirectoryStructure(workingDirectory, config.IgnoredDirectories);
+            s_logger.Information("Generating directory structure with files...");
+            output = GenerateDirectoryStructure(workingDirectory, config.IgnoredDirectories, false);
+            dataGenerated = true;
         }
-        else
+        else if (opts.DirectoriesOnly)
         {
+            s_logger.Information("Generating directory structure without files...");
+            output = GenerateDirectoryStructure(workingDirectory, config.IgnoredDirectories, true);
+            dataGenerated = true;
+        }
+        else if (!opts.GenerateStructureOnly && !opts.DirectoriesOnly)
+        {
+            s_logger.Information("Generating code structure...");
+            s_logger.Information("Cleanup content: {CleanupContent}", opts.CleanupContent);
             output = await GenerateCodeStructureAsync(workingDirectory, opts.CleanupContent, config.AllowedExtensions,
                 config.IgnoredDirectories);
+            dataGenerated = true;
+        }
+
+        if (!dataGenerated)
+        {
+            s_logger.Warning("No valid data generation option selected. Please choose one option");
+            return;
         }
 
         s_logger.Information("Structure has been successfully generated!");
@@ -132,29 +148,58 @@ public static class MainApp
         }
     }
 
-    private static string GenerateDirectoryStructure(string directory, string[] ignoredDirectories)
+    private static string GenerateDirectoryStructure(string directory, string[] ignoredDirectories, bool directoriesOnly)
     {
+        var namespaces = new Dictionary<string, HashSet<string>>();
+        CollectFiles(directory, ignoredDirectories, namespaces);
+
         var sb = new StringBuilder();
-        GenerateDirectoryStructureRecursive(directory, "", ignoredDirectories, sb);
-        return sb.ToString();
-    }
+        var orderedNamespaces = namespaces.OrderBy(x => x.Key).ToList();
 
-    private static void GenerateDirectoryStructureRecursive(string directory, string indent, string[] ignoredDirectories, StringBuilder sb)
-    {
-        var dirInfo = new DirectoryInfo(directory);
-        sb.AppendLine($"{indent}{dirInfo.Name}/");
-
-        foreach (var file in dirInfo.GetFiles())
+        for (int i = 0; i < orderedNamespaces.Count; i++)
         {
-            sb.AppendLine($"{indent}  {file.Name}");
+            var ns = orderedNamespaces[i];
+            sb.AppendLine($"-{ns.Key}");
+            if (!directoriesOnly)
+            {
+                foreach (string file in ns.Value.OrderBy(x => x))
+                {
+                    sb.AppendLine(file);
+                }
+            }
+
+            // Добавляем пустую строку между пространствами имен, кроме последнего
+            if (i < orderedNamespaces.Count - 1)
+            {
+                sb.AppendLine();
+            }
         }
 
-        foreach (var subDir in dirInfo.GetDirectories())
+        return sb.ToString().TrimEnd();
+    }
+
+    private static void CollectFiles(string directory, string[] ignoredDirectories, Dictionary<string, HashSet<string>> namespaces)
+    {
+        foreach (string file in Directory.GetFiles(directory, "*.cs", SearchOption.AllDirectories))
         {
-            if (!ignoredDirectories.Contains(subDir.Name))
+            if (IsIgnoredDirectory(file, ignoredDirectories))
             {
-                GenerateDirectoryStructureRecursive(subDir.FullName, indent + "  ", ignoredDirectories, sb);
+                continue;
             }
+
+            string relativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), file);
+            string[] parts = relativePath.Split(Path.DirectorySeparatorChar);
+
+            string ns = string.Join(".", parts.Take(parts.Length - 1));
+            string item = Path.GetFileNameWithoutExtension(file);
+
+            if (!namespaces.TryGetValue(ns, out HashSet<string> value))
+            {
+                value = [];
+                namespaces[ns] = value;
+            }
+
+            value.Add(item);
         }
     }
 
@@ -208,11 +253,9 @@ public static class MainApp
     {
         foreach (string subDirectory in Directory.GetDirectories(directory))
         {
-            string directoryName = Path.GetFileName(subDirectory);
-
-            if (!ignoredDirectories.Contains(directoryName))
+            if (!IsIgnoredDirectory(subDirectory, ignoredDirectories))
             {
-                directoriesToProcess.Enqueue((subDirectory, $"{prefix}{directoryName}/"));
+                directoriesToProcess.Enqueue((subDirectory, $"{prefix}{Path.GetFileName(subDirectory)}/"));
             }
         }
     }
@@ -299,5 +342,11 @@ public static class MainApp
         }
 
         return sb.ToString();
+    }
+
+    private static bool IsIgnoredDirectory(string path, string[] ignoredDirectories)
+    {
+        string[] pathParts = path.Split(Path.DirectorySeparatorChar);
+        return pathParts.Any(part => ignoredDirectories.Contains(part));
     }
 }
